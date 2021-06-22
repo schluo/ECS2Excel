@@ -34,8 +34,8 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 #        VARIABLE
 ###########################################
 DEBUG = True
-max_namespaces = 100
-max_buckets = 100
+max_namespaces = 200
+max_buckets = 200
 
 
 ###########################################
