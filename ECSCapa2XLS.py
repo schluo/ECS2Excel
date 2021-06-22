@@ -33,9 +33,8 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 ###########################################
 #        VARIABLE
 ###########################################
-DEBUG = True
-max_namespaces = 200
-max_buckets = 200
+max_namespaces = 5
+max_buckets = 5
 
 
 ###########################################
@@ -48,7 +47,7 @@ def escape_ansi(line):
 
 
 def get_argument():
-    global hostaddress, user, password, filename
+    global hostaddress, user, password, filename, DEBUG
 
     try:
 
@@ -70,7 +69,10 @@ def get_argument():
                             type=str,
                             help='Excel Sheet filename',
                             required=True)
-
+        parser.add_argument('-v', '--verbose',
+                            action='store_const',const=True,
+                            help='verbose logging',
+                            required=False)
         args = parser.parse_args()
 
     except KeyboardInterrupt:
@@ -81,7 +83,7 @@ def get_argument():
     user = args.username
     password = args.password
     filename = args.filename
-
+    DEBUG = args.verbose
 
 ###########################################
 #    CLASS
