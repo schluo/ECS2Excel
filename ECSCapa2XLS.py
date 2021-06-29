@@ -2,7 +2,7 @@
 # encoding: utf-8
 
 __author__ = "Oliver Schlueter"
-__copyright__ = "Copyright 2020, Dell Technologies"
+__copyright__ = "Copyright 2021, Dell Technologies"
 __license__ = "GPL"
 __version__ = "1.0.1"
 __email__ = "oliver.schlueter@dell.com"
@@ -33,8 +33,8 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 ###########################################
 #        VARIABLE
 ###########################################
-max_namespaces = 5
-max_buckets = 5
+max_namespaces = 500
+max_buckets = 500
 
 
 ###########################################
@@ -116,7 +116,7 @@ class ecs:
         except Exception as err:
             logging.error('Not able to get token: ' + str(err))
             print(timestamp + ": Not able to get token: " + str(err))
-            exit(1)
+            sys.exit(1)
 
         try:
             # try to get namespaces using token
@@ -157,7 +157,7 @@ class ecs:
                                          headers={"X-SDS-AUTH-TOKEN": ecs_token, "Accept": "application/json"})
                         bucket_billing = json.loads(r.content)
                         bucket_total_objects = bucket_billing["total_objects"]
-                        bucket_total_size = float(bucket_billing["total_size"]) * 1024 * 1024 * 1024
+                        bucket_total_size = float(bucket_billing["total_size"])
 
                     # if not possible set values to zero
                     except:
@@ -171,7 +171,7 @@ class ecs:
         except Exception as err:
             logging.error('Not able to get bucket data: ' + str(err))
             print(timestamp + ": Not able to get bucket data: " + str(err))
-            exit(1)
+            sys.exit(1)
 
     def process_results(self):
         self.send_request_billing()
@@ -233,16 +233,21 @@ class ecs:
         except Exception as err:
             logging.error('Error while generating result output: ' + str(err))
             print(timestamp + ": Error while generating result output: " + str(err))
-            exit(1)
+            sys.exit(1)
 
 
 def main():
     # get and test arguments
+    print("================================================================")
+    print("  Dell EMC ECS Capacity Report as MS Excel Sheet V", __version__)
+    print("================================================================")
     get_argument()
 
     FORMAT = '%(asctime)-15s %(message)s'
-    logging.basicConfig(filename='ecs2checkmk.log', level=logging.INFO, format=FORMAT)
+    logging.basicConfig(filename='ecs2xls.log', level=logging.INFO, format=FORMAT)
+
     logging.info('Started')
+
 
     # store timestamp
     global timestamp, metric_filter_file, metric_config_file
