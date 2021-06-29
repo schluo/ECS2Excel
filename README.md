@@ -6,6 +6,7 @@ Tool should be started by cron or Windows Task Scheduler.
 
 Windows EXE Version avaible in /Dist
 
+
 ================================================================
   Dell EMC ECS Capacity Report as MS Excel Sheet V 1.0.1
 ================================================================
