@@ -2,12 +2,11 @@
 
 Helps archiving historical capacity values due to the fact that ECS is only able to store the values for 2 month.
 
-Tool should be started by cron or Windows Task Scheduler.
+Tool should be started by cron or Windows Task Scheduler. The Excel Sheet will get one more column per call.
 
 Windows EXE Version avaible in /Dist
 
-
-
+=============================================================================
   Dell EMC ECS Capacity Report as MS Excel Sheet V 1.0.1
 
 usage: ECSCapa2XLS.py [-h] -H HOSTNAME -u USERNAME -p PASSWORD -f FILENAME
