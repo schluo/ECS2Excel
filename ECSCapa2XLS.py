@@ -47,7 +47,7 @@ def escape_ansi(line):
 
 
 def get_argument():
-    global hostaddress, user, password, filename, bucket_reporting, horizontal_orientation, DEBUG
+    global hostaddress, user, password, filename, bucket_reporting, DEBUG
 
     try:
 
@@ -77,10 +77,7 @@ def get_argument():
                             action='store_const', const=True,
                             help='reporting based on buckets',
                             required=False)
-        parser.add_argument('-o', '--horizontal',
-                            action='store_const', const=True,
-                            help='time series progress horizontal',
-                            required=False)
+
         args = parser.parse_args()
 
     except KeyboardInterrupt:
@@ -92,7 +89,6 @@ def get_argument():
     password = args.password
     filename = args.filename
     bucket_reporting = args.bucket
-    horizontal_orientation = args.horizontal
     DEBUG = args.verbose
 
 
