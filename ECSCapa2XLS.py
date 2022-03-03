@@ -2,9 +2,9 @@
 # encoding: utf-8
 
 __author__ = "Oliver Schlueter"
-__copyright__ = "Copyright 2021, Dell Technologies"
+__copyright__ = "Copyright 2022, Dell Technologies"
 __license__ = "GPL"
-__version__ = "1.0.1"
+__version__ = "1.2.0"
 __email__ = "oliver.schlueter@dell.com"
 __status__ = "Production"
 
@@ -47,7 +47,7 @@ def escape_ansi(line):
 
 
 def get_argument():
-    global hostaddress, user, password, filename, DEBUG
+    global hostaddress, user, password, filename, bucket_reporting, horizontal_orientation, DEBUG
 
     try:
 
@@ -70,8 +70,16 @@ def get_argument():
                             help='Excel Sheet filename',
                             required=True)
         parser.add_argument('-v', '--verbose',
-                            action='store_const',const=True,
+                            action='store_const', const=True,
                             help='verbose logging',
+                            required=False)
+        parser.add_argument('-b', '--bucket',
+                            action='store_const', const=True,
+                            help='reporting based on buckets',
+                            required=False)
+        parser.add_argument('-o', '--horizontal',
+                            action='store_const', const=True,
+                            help='time series progress horizontal',
                             required=False)
         args = parser.parse_args()
 
@@ -83,7 +91,10 @@ def get_argument():
     user = args.username
     password = args.password
     filename = args.filename
+    bucket_reporting = args.bucket
+    horizontal_orientation = args.horizontal
     DEBUG = args.verbose
+
 
 ###########################################
 #    CLASS
@@ -98,7 +109,7 @@ class ecs:
 
     def send_request_billing(self):
         # send a request and get the result as dict
-        global ecs_results
+        global ecs_results, ecs_capacity_summary
         ecs_results = []
         global ecs_token
 
@@ -118,60 +129,91 @@ class ecs:
             print(timestamp + ": Not able to get token: " + str(err))
             sys.exit(1)
 
-        try:
-            # try to get namespaces using token
-            url = 'https://' + hostaddress + '/object/namespaces'
-            r = requests.get(url, verify=False, headers={"X-SDS-AUTH-TOKEN": ecs_token, "Accept": "application/json"})
-
-            ecs_namespaces = json.loads(r.content)['namespace']
-
-            count_namespaces = 0
-
-            for namespace in ecs_namespaces:
-                count_namespaces += 1
-                if count_namespaces > max_namespaces:
-                    break
-                current_namespace = namespace["name"]
-                if DEBUG:
-                    logging.info('Namespace: ' + current_namespace)
-
-                # try to get buckets using namespaces
-                url = 'https://' + hostaddress + '/object/bucket?namespace=' + current_namespace
+        if bucket_reporting:
+            try:
+                # try to get namespaces using token
+                url = 'https://' + hostaddress + '/object/namespaces'
                 r = requests.get(url, verify=False,
                                  headers={"X-SDS-AUTH-TOKEN": ecs_token, "Accept": "application/json"})
-                ecs_buckets = json.loads(r.content)['object_bucket']
 
-                count_buckets = 0
-                for bucket in ecs_buckets:
-                    count_buckets += 1
-                    if count_buckets > max_buckets:
+                ecs_namespaces = json.loads(r.content)['namespace']
+
+                count_namespaces = 0
+
+                for namespace in ecs_namespaces:
+                    count_namespaces += 1
+                    if count_namespaces > max_namespaces:
                         break
-                    current_bucket = bucket["name"]
+                    current_namespace = namespace["name"]
                     if DEBUG:
-                        logging.info('Bucket: ' + current_bucket)
+                        logging.info('Namespace: ' + current_namespace)
 
-                    # try to get capacity data
-                    try:
-                        url = 'https://' + hostaddress + '/object/billing/buckets/' + current_namespace + '/' + current_bucket + '/info'
-                        r = requests.get(url, verify=False,
-                                         headers={"X-SDS-AUTH-TOKEN": ecs_token, "Accept": "application/json"})
-                        bucket_billing = json.loads(r.content)
-                        bucket_total_objects = bucket_billing["total_objects"]
-                        bucket_total_size = float(bucket_billing["total_size"])
+                    # try to get buckets using namespaces
+                    url = 'https://' + hostaddress + '/object/bucket?namespace=' + current_namespace
+                    r = requests.get(url, verify=False,
+                                     headers={"X-SDS-AUTH-TOKEN": ecs_token, "Accept": "application/json"})
+                    ecs_buckets = json.loads(r.content)['object_bucket']
 
-                    # if not possible set values to zero
-                    except:
-                        bucket_total_objects = 0
-                        bucket_total_size = 0
+                    count_buckets = 0
+                    for bucket in ecs_buckets:
+                        count_buckets += 1
+                        if count_buckets > max_buckets:
+                            break
+                        current_bucket = bucket["name"]
+                        if DEBUG:
+                            logging.info('Bucket: ' + current_bucket)
 
-                    bucket_data = {"name": current_bucket, "namespace": current_namespace,
-                                   "total_objects": bucket_total_objects, "total_size": bucket_total_size}
-                    ecs_results.append(bucket_data)
+                        # try to get capacity data
+                        try:
+                            url = 'https://' + hostaddress + '/object/billing/buckets/' + current_namespace + '/' + current_bucket + '/info'
+                            r = requests.get(url, verify=False,
+                                             headers={"X-SDS-AUTH-TOKEN": ecs_token, "Accept": "application/json"})
+                            bucket_billing = json.loads(r.content)
+                            bucket_total_objects = bucket_billing["total_objects"]
+                            bucket_total_size = float(bucket_billing["total_size"])
 
-        except Exception as err:
-            logging.error('Not able to get bucket data: ' + str(err))
-            print(timestamp + ": Not able to get bucket data: " + str(err))
-            sys.exit(1)
+                        # if not possible set values to zero
+                        except:
+                            bucket_total_objects = 0
+                            bucket_total_size = 0
+
+                        bucket_data = {"name": current_bucket, "namespace": current_namespace,
+                                       "total_objects": bucket_total_objects, "total_size": bucket_total_size}
+                        ecs_results.append(bucket_data)
+
+            except Exception as err:
+                logging.error('Not able to get bucket data: ' + str(err))
+                print(timestamp + ": Not able to get bucket data: " + str(err))
+                sys.exit(1)
+        else:
+            try:
+                # try to get namespaces using token
+                url = 'https://' + hostaddress + '/dashboard/zones/localzone'
+                r = requests.get(url, verify=False,
+                                 headers={"X-SDS-AUTH-TOKEN": ecs_token, "Accept": "application/json"})
+
+                ecs_dashboard = json.loads(r.content)
+
+                vds_name = ecs_dashboard['name'] + " on " + hostaddress[0:hostaddress.rindex(":")]
+
+                diskSpaceTotalCurrent = round(
+                    float(ecs_dashboard['diskSpaceTotalCurrent'][0]['Space']) / 1024 / 1024 / 1024, 2)
+                diskSpaceFreeCurrent = round(
+                    float(ecs_dashboard['diskSpaceFreeCurrent'][0]['Space']) / 1024 / 1024 / 1024, 2)
+                diskSpaceAllocatedCurrent = round(
+                    float(ecs_dashboard['diskSpaceAllocatedCurrent'][0]['Space']) / 1024 / 1024 / 1024, 2)
+                diskSpaceReservedCurrent = round(
+                    float(ecs_dashboard['diskSpaceReservedCurrent'][0]['Space']) / 1024 / 1024 / 1024, 2)
+
+                ecs_capacity_summary = [vds_name, diskSpaceTotalCurrent, diskSpaceFreeCurrent,
+                                        diskSpaceAllocatedCurrent, diskSpaceReservedCurrent]
+                if DEBUG:
+                    logging.info(ecs_capacity_summary)
+
+            except Exception as err:
+                logging.error('Not able to get capacity data: ' + str(err))
+                print(timestamp + ": Not able to get capacity data: " + str(err))
+                sys.exit(1)
 
     def process_results(self):
         self.send_request_billing()
@@ -189,43 +231,68 @@ class ecs:
 
             sheet = workbook.active
 
-            # if there are no columns start with column 3 and create headers
-            if sheet.max_column < 3:
-                sheet.cell(1, 1).value = "Namespace"
-                sheet.cell(1, 2).value = "Bucket"
-                new_column = 3
-            else:
-                new_column = sheet.max_column + 1
+            # reporting on bucket basis
+            if bucket_reporting:
 
-            if DEBUG:
-                logging.info("Add Date Column at column " + str(new_column))
-
-            # insert current timestamp in new column
-            sheet.cell(1, new_column).value = datetime.datetime.now().strftime("%d-%b-%Y (%H:%M:%S)")
-
-            for bucket in ecs_results:
-                bucket_index = 0
-                for i in range(1, sheet.max_row + 1):
-                    if sheet.cell(i, 1).value == bucket["namespace"] and sheet.cell(i, 2).value == bucket["name"]:
-                        bucket_index = i
-                        if DEBUG:
-                            logging.info("Bucket " + bucket["name"] + " already exists")
-                        break
-
-                # bucket row is already existing in Sheet
-                if bucket_index > 0:
-                    sheet.cell(bucket_index, new_column).value = bucket["total_size"]
-
-                # bucket is not existing in Sheet
+                # if there are no columns start with column 3 and create headers
+                if sheet.max_column < 3:
+                    sheet.cell(1, 1).value = "Namespace"
+                    sheet.cell(1, 2).value = "Bucket"
+                    new_column = 3
                 else:
-                    logging.info("New Bucket " + bucket["name"])
-                    new_row = sheet.max_row + 1
-                    sheet.cell(new_row, 1).value = bucket["namespace"]
-                    sheet.cell(new_row, 2).value = bucket["name"]
-                    sheet.cell(new_row, new_column).value = bucket["total_size"]
+                    new_column = sheet.max_column + 1
 
-                    if DEBUG:
-                        logging.info("New row inserted at row: " + str(new_row) + ", column: " + str(new_column))
+                if DEBUG:
+                    logging.info("Add Date Column at column " + str(new_column))
+
+                # insert current timestamp in new column
+                sheet.cell(1, new_column).value = datetime.datetime.now().strftime("%d-%b-%Y (%H:%M:%S)")
+
+                for bucket in ecs_results:
+                    bucket_index = 0
+                    for i in range(1, sheet.max_row + 1):
+                        if sheet.cell(i, 1).value == bucket["namespace"] and sheet.cell(i, 2).value == bucket["name"]:
+                            bucket_index = i
+                            if DEBUG:
+                                logging.info("Bucket " + bucket["name"] + " already exists")
+                            break
+
+                    # bucket row is already existing in Sheet
+                    if bucket_index > 0:
+                        sheet.cell(bucket_index, new_column).value = bucket["total_size"]
+
+                    # bucket is not existing in Sheet
+                    else:
+                        logging.info("New Bucket " + bucket["name"])
+                        new_row = sheet.max_row + 1
+                        sheet.cell(new_row, 1).value = bucket["namespace"]
+                        sheet.cell(new_row, 2).value = bucket["name"]
+                        sheet.cell(new_row, new_column).value = bucket["total_size"]
+
+                        if DEBUG:
+                            logging.info("New row inserted at row: " + str(new_row) + ", column: " + str(new_column))
+            else:
+
+                # if there are no columns start with column 3 and create headers
+                if sheet.max_row < 2:
+                    sheet.cell(1, 1).value = "VDC Name: " + ecs_capacity_summary[0];
+                    sheet.cell(2, 1).value = "Date"
+                    sheet.cell(2, 2).value = "Total"
+                    sheet.cell(2, 3).value = "Free"
+                    sheet.cell(2, 4).value = "Used"
+                    sheet.cell(2, 5).value = "Reserved"
+                    new_row = 3
+                else:
+                    new_row = sheet.max_row + 1
+
+                if DEBUG:
+                    logging.info("Add Date at row " + str(new_row))
+
+                # insert current timestamp in new column
+                sheet.cell(new_row, 1).value = datetime.datetime.now().strftime("%d-%b-%Y (%H:%M:%S)")
+
+                for i in range(1, 5):
+                    sheet.cell(new_row, i + 1).value = ecs_capacity_summary[i]
 
             # save sheet to disk
             workbook.save(filename=filename)
@@ -248,7 +315,6 @@ def main():
 
     logging.info('Started')
 
-
     # store timestamp
     global timestamp, metric_filter_file, metric_config_file
     timestamp = datetime.datetime.now().strftime("%d-%b-%Y (%H:%M:%S)")
@@ -270,3 +336,4 @@ def main():
 if __name__ == '__main__':
     main()
     sys.exit(0)
+
