@@ -6,12 +6,10 @@ Tool should be started by cron or Windows Task Scheduler. The Excel Sheet will g
 
 Windows EXE Version avaible in /Dist
 
-=============================================================================
-  
-  Dell EMC ECS Capacity Report as MS Excel Sheet V 1.0.1
-
-usage: ECSCapa2XLS.py [-h] -H HOSTNAME -u USERNAME -p PASSWORD -f FILENAME
-                      [-v]
+================================================================
+Dell EMC ECS Capacity Report as MS Excel Sheet V 1.2.0
+================================================================
+usage: ECSCapa2XLS.py [-h] -H HOSTNAME -u USERNAME -p PASSWORD -f FILENAME [-v] [-b]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -24,4 +22,7 @@ optional arguments:
   -f FILENAME, --filename FILENAME
                         Excel Sheet filename
   -v, --verbose         verbose logging
+  -b, --bucket          reporting based on buckets
+
+
 
